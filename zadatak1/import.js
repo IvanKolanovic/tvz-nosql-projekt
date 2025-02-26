@@ -1,13 +1,23 @@
-const fs = require("fs");
-const { MongoClient } = require("mongodb");
-const readline = require("readline");
+import fs from "fs";
+import { MongoClient } from "mongodb";
+import readline from "readline";
 
 // MongoDB connection string
 const uri = "mongodb://admin:admin12345@localhost:27017/";
-const client = new MongoClient(uri);
 
-// Function to read data from file and import to MongoDB
-async function importData() {
+/**
+ * Function to read data from file and import to MongoDB
+ * @param {string} dataFilePath - Path to the data file (default: "data.txt")
+ * @returns {Promise<Object>} - Object containing import statistics
+ */
+async function importData(dataFilePath = "data.txt") {
+  const client = new MongoClient(uri);
+  let stats = {
+    totalLines: 0,
+    dataRecords: 0,
+    success: false,
+  };
+
   try {
     // Connect to MongoDB
     await client.connect();
@@ -19,7 +29,7 @@ async function importData() {
     const signalsCollection = database.collection("signals");
 
     // Create a read stream for the data file
-    const fileStream = fs.createReadStream("data.txt");
+    const fileStream = fs.createReadStream(dataFilePath);
     const rl = readline.createInterface({
       input: fileStream,
       crlfDelay: Infinity,
@@ -111,12 +121,23 @@ async function importData() {
     console.log(`Total lines processed: ${lineCount}`);
     console.log(`Total data records imported: ${dataLineCount}`);
     console.log("Data import completed");
+
+    stats = {
+      totalLines: lineCount,
+      dataRecords: dataLineCount,
+      success: true,
+      metadata: metadata,
+      columnNames: columnNames,
+    };
+
+    return stats;
   } catch (err) {
     console.error("Error during import:", err);
+    throw err;
   } finally {
     await client.close();
   }
 }
 
-// Run the import function
-importData().catch(console.error);
+// Export the importData function as ES module
+export { importData };
